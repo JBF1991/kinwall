@@ -18,7 +18,7 @@ import { ErrorSchema } from '../schemas.ts';
 
 export const SECURITY_KINDS = [
   'passkey.added', 'passkey.renamed', 'passkey.removed',
-  'signin.passkey', 'signin.recovery', 'signout',
+  'signin.passkey', 'signin.recovery', 'signin.oidc', 'signout',
   'recovery.generated',
   'device.paired', 'device.renamed', 'device.owner',
   'key.created', 'key.renamed', 'key.removed', 'widgets.added', 'widgets.removed',

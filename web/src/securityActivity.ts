@@ -29,7 +29,7 @@ export function securityHint(latest: Pick<SecurityEvent, 'summary' | 'at'> | und
 /** The sheet's filter chips; each sends its kinds (GET /api/security-events?kinds=). All sends none. */
 export const SECURITY_FILTERS = [
   { key: 'all', label: msg('All'), kinds: [] },
-  { key: 'signins', label: msg('Sign-ins'), kinds: ['signin.passkey', 'signin.recovery', 'signout', 'recovery.generated', 'support.link_issued', 'support.link_revoked', 'support.signin'] },
+  { key: 'signins', label: msg('Sign-ins'), kinds: ['signin.passkey', 'signin.recovery', 'signin.oidc', 'signout', 'recovery.generated', 'support.link_issued', 'support.link_revoked', 'support.signin'] },
   { key: 'passkeys', label: msg('Passkeys'), kinds: ['passkey.added', 'passkey.renamed', 'passkey.removed'] },
   { key: 'devices', label: msg('Devices'), kinds: ['device.paired', 'device.renamed', 'device.owner', 'widgets.added', 'widgets.removed'] },
   { key: 'keys', label: msg('Keys & apps'), kinds: ['key.created', 'key.renamed', 'key.removed', 'app.connected', 'app.disconnected'] },

@@ -34,6 +34,7 @@ import { pickAfterIdle } from './actingAs.ts'
 import { PIN_RE, pinWaitMs, pressPinKey } from './quietPin.ts'
 import { inkFor } from './color.ts'
 import { loginWithPasskey, passkeysSupported, registerPasskey } from './webauthn.ts'
+import { OidcButton, OidcReturnGate } from './Oidc.tsx'
 import { announce } from './a11y.tsx'
 import { DialogProvider, useDialog } from './dialog.tsx'
 import { expireSigninCookie, resolveKeyLink, takeKeyLink } from './keyLink.ts'
@@ -593,6 +594,7 @@ function PairingGate({ onKey }: { onKey: (banner?: string) => void }) {
                 <p className="gate-note">{t('A parent approves it with a code. It gets the calendar, chores and lists, but not settings.')}</p>
               </div>,
             ][wallFirst ? 'reverse' : 'slice']()}
+            <OidcButton />
           </div>
         </>}
         <div className="gate-links">
@@ -1135,7 +1137,7 @@ if (MOCK) document.documentElement.style.setProperty('--safe-t', appPlatform() =
 // Dialogs (confirm/prompt/alert) are available everywhere, the setup wizard and gates included.
 // Timers ring wherever the app is (Timers.tsx).
 export default function App() {
-  return <DialogProvider><KeyLinkGate>{urlKey => <AppRoutes urlKey={urlKey} />}</KeyLinkGate><TimerHost /></DialogProvider>
+  return <DialogProvider><OidcReturnGate><KeyLinkGate>{urlKey => <AppRoutes urlKey={urlKey} />}</KeyLinkGate></OidcReturnGate><TimerHost /></DialogProvider>
 }
 
 function AppRoutes({ urlKey }: { urlKey: string | null }) {

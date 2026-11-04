@@ -50,12 +50,12 @@ test('securityDay and groupByDay: today, yesterday, then the date, in runs', () 
 })
 
 test('SECURITY_FILTERS: every kind has exactly one chip, and All sends none', () => {
-  const kinds = ['passkey.added', 'passkey.renamed', 'passkey.removed', 'signin.passkey', 'signin.recovery', 'signout', 'recovery.generated', 'device.paired', 'device.renamed', 'device.owner', 'key.created', 'key.renamed', 'key.removed', 'widgets.added', 'widgets.removed', 'app.connected', 'app.disconnected', 'pin.set', 'pin.removed', 'journal.privacy', 'member.grown_up', 'support.link_issued', 'support.link_revoked', 'support.signin']
+  const kinds = ['passkey.added', 'passkey.renamed', 'passkey.removed', 'signin.passkey', 'signin.recovery', 'signin.oidc', 'signout', 'recovery.generated', 'device.paired', 'device.renamed', 'device.owner', 'key.created', 'key.renamed', 'key.removed', 'widgets.added', 'widgets.removed', 'app.connected', 'app.disconnected', 'pin.set', 'pin.removed', 'journal.privacy', 'member.grown_up', 'support.link_issued', 'support.link_revoked', 'support.signin']
   const chipped = SECURITY_FILTERS.flatMap(f => [...f.kinds])
   assert.deepEqual([...chipped].sort(), [...kinds].sort())
   assert.equal(SECURITY_FILTERS[0].key, 'all')
   assert.equal(SECURITY_FILTERS[0].kinds.length, 0)
-  assert.deepEqual([...SECURITY_FILTERS.find(f => f.key === 'signins')!.kinds], ['signin.passkey', 'signin.recovery', 'signout', 'recovery.generated', 'support.link_issued', 'support.link_revoked', 'support.signin'])
+  assert.deepEqual([...SECURITY_FILTERS.find(f => f.key === 'signins')!.kinds], ['signin.passkey', 'signin.recovery', 'signin.oidc', 'signout', 'recovery.generated', 'support.link_issued', 'support.link_revoked', 'support.signin'])
 })
 
 test('matchesSecurityQuery: summary, the thing it was about, or who did it, ignoring case', () => {

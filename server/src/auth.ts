@@ -5,6 +5,7 @@ import { waitUntil } from './env.ts';
 import { parseMemberIds } from './calendar-members.ts';
 import { derivedMac } from './crypto.ts';
 import { stored } from './i18n.ts';
+import { oidcKeyIsCurrent, type OidcKeyFields } from './oidc-policy.ts';
 
 const LAST_USED_STALE_MS = 60 * 60 * 1000; // don't write last_used_at more than once an hour
 
@@ -202,6 +203,7 @@ const PUBLIC_PATH =
 // listed here is denied for display keys - deny by default, not scattered checks.
 const DISPLAY_ALLOWED: { method: string; pattern: RegExp }[] = [
   { method: 'GET', pattern: /^\/api\/announcements$/ },
+  { method: 'POST', pattern: /^\/api\/sessions\/logout$/ },
   { method: 'PUT', pattern: /^\/api\/push\/native$/ },
   { method: 'GET', pattern: /^\/api\/recipes(\/[^/]+)?$/ },
   { method: 'PUT', pattern: /^\/api\/recipes\/[^/]+\/(rating|favorite)$/ }, // family members rate and heart dinners (a member's own device only for them)
@@ -412,7 +414,7 @@ const CONNECTED_APP_DENIED: { method: RegExp; pattern: RegExp; error?: string }[
   { method: /^(PUT|DELETE)$/, pattern: /^\/api\/providers\/[^/]+$/ },
   { method: /^(POST)$/, pattern: /^\/api\/oauth\/[^/]+\/start$/ }, // connecting a calendar account: a parent, in their own browser
   { method: /./, pattern: /^\/api\/authorizations(\/.*)?$/ },
-  { method: /^(GET)$/, pattern: /^\/api\/security-events$/ }, // the security log: parent devices only
+  { method: /^(GET)$/, pattern: /^\/api\/(security-events|oidc\/sessions)$/ }, // sign-in metadata: parent devices only
   { method: /^(POST)$/, pattern: /^\/api\/push\/subscriptions$/, error: NOT_A_DEVICE },
   { method: /^(PATCH|DELETE)$/, pattern: /^\/api\/push\/subscriptions\/[^/]+$/, error: NOT_A_DEVICE },
   { method: /^(POST)$/, pattern: /^\/api\/push\/test\/[^/]+$/, error: NOT_A_DEVICE },
@@ -476,12 +478,12 @@ export async function resolveKey(c: Context<{ Bindings: Env }>): Promise<Resolve
   const hash = await sha256Hex(key);
   if (c.env.ADMIN_API_KEY && timingSafeEqual(hash, await sha256Hex(c.env.ADMIN_API_KEY))) return envAdmin();
 
-  const row = await c.env.DB.prepare('SELECT id, name, scope, expires_at, kind, last_used_at, owner, device_kind FROM api_keys WHERE hash = ?')
+  const row = await c.env.DB.prepare('SELECT id, name, scope, expires_at, kind, last_used_at, owner, device_kind, oidc_issuer, oidc_client_id, oidc_subject FROM api_keys WHERE hash = ?')
     .bind(hash)
-    .first<{ id: string; name: string; scope: string | null; expires_at: string | null; kind: string | null; last_used_at: string | null; owner: string | null; device_kind: KeyDeviceKind | null }>();
+    .first<OidcKeyFields & { id: string; name: string; scope: string | null; expires_at: string | null; kind: string | null; last_used_at: string | null; owner: string | null; device_kind: KeyDeviceKind | null }>();
   if (!row) return null;
   if (row.expires_at && row.expires_at < new Date().toISOString()) return null; // expired session key
-  if (!(await derivedOwnerIsCurrent(c.env.DB, row))) return null;
+  if (!(await oidcKeyIsCurrent(c.env, row)) || !(await derivedOwnerIsCurrent(c.env.DB, row)) || !(await oidcAncestorsAreCurrent(c.env, row))) return null;
   return {
     id: row.id,
     name: row.name,
@@ -516,6 +518,22 @@ async function derivedOwnerIsCurrent(db: KinwallDb, key: { id: string; owner: st
   return !mismatch;
 }
 
+/** A widget/Watch derived from OIDC must stop working when its source identity is revoked,
+ * even when the child is shared and therefore has no private owner to check above. */
+async function oidcAncestorsAreCurrent(env: Env, key: { id: string; device_kind: KeyDeviceKind | null }): Promise<boolean> {
+  if (key.device_kind !== 'widgets') return true;
+  const { results } = await env.DB.prepare(`
+    WITH RECURSIVE chain AS (
+      SELECT id, parent_key_id, oidc_issuer, oidc_client_id, oidc_subject, scope, owner, expires_at FROM api_keys WHERE id = ?
+      UNION ALL
+      SELECT p.id, p.parent_key_id, p.oidc_issuer, p.oidc_client_id, p.oidc_subject, p.scope, p.owner, p.expires_at
+        FROM api_keys p JOIN chain c ON p.id = c.parent_key_id
+    ) SELECT * FROM chain WHERE oidc_issuer IS NOT NULL
+  `).bind(key.id).all<OidcKeyFields>();
+  for (const ancestor of results) if (!(await oidcKeyIsCurrent(env, ancestor))) return false;
+  return true;
+}
+
 // ---- Media tokens: what an <img src> carries instead of the full key ----
 // km_<k|g|e>.<id>.<MAC>: k = an api_keys row (an API key, a passkey or recovery sign-in, a paired
 // device), g = an OAuth grant (an app's sign-in, whose access key changes every hour, so the token
@@ -535,8 +553,8 @@ const MEDIA_PREFIX = 'km_';
 const MEDIA_PURPOSE = 'kinwall media token v2';
 const MEDIA_TOKEN = /^km_([kge])\.([^.]+)\.([\w-]{43})$/;
 const MEDIA_SECRET = 'mediaTokenSecret'; // a settings row; readSettings never returns it
-type KeyRow = { id: string; name: string; scope: string | null; kind: string | null; owner: string | null; device_kind: KeyDeviceKind | null };
-const KEY_COLS = 'id, name, scope, kind, owner, device_kind';
+type KeyRow = OidcKeyFields & { id: string; name: string; scope: string | null; kind: string | null; owner: string | null; device_kind: KeyDeviceKind | null };
+const KEY_COLS = 'id, name, scope, kind, owner, device_kind, oidc_issuer, oidc_client_id, oidc_subject';
 const toResolved = (row: KeyRow): ResolvedKey => ({
   id: row.id,
   name: row.name,
@@ -595,7 +613,7 @@ async function resolveMediaToken(env: Env, token: string): Promise<ResolvedKey |
            AND (expires_at > ? OR EXISTS (SELECT 1 FROM oauth_refresh_tokens r WHERE r.grant_id = k.oauth_grant_id AND r.used_at IS NULL AND r.expires_at > ?))
          ORDER BY expires_at DESC LIMIT 1`,
       ).bind(id, now, now).first<KeyRow>();
-  return row && await derivedOwnerIsCurrent(env.DB, row) ? { ...toResolved(row), media: true } : null;
+  return row && await oidcKeyIsCurrent(env, row) && await derivedOwnerIsCurrent(env.DB, row) && await oidcAncestorsAreCurrent(env, row) ? { ...toResolved(row), media: true } : null;
 }
 
 // ---- Photo download links: a one-time ticket for GET /api/photos/export.zip ----
@@ -640,7 +658,9 @@ export function carryRequestKey(from: Request, to: Request): void {
 }
 
 export async function requireAuth(c: Context<{ Bindings: Env }>, next: Next) {
-  if (PUBLIC_PATH.test(c.req.path)) return next();
+  if (PUBLIC_PATH.test(c.req.path)
+    || (c.req.method === 'GET' && /^\/api\/oidc\/(config|callback)$/.test(c.req.path))
+    || (c.req.method === 'POST' && /^\/api\/oidc\/(start|finish)$/.test(c.req.path))) return next();
 
   const resolved = (await takePhotoExportTicket(c)) ?? (await resolveKey(c));
   if (!resolved) return c.json({ error: 'unauthorized' }, 401);

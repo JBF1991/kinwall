@@ -20,6 +20,7 @@
     "@simplewebauthn/server": "^14.0.3",
     "hono": "^4.13.14",
     "ical.js": "^2.2.1",
+    "openid-client": "^6.8.9",
     "rrule": "^2.8.1",
     "tsdav": "^2.5.0",
     "zod": "^4.6.7"

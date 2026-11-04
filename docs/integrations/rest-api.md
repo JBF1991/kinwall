@@ -34,6 +34,20 @@ Authorization: Bearer <key>
 * Uploading a photo: `POST /api/photos` with the image itself as the body (`Content-Type: image/webp`, `image/jpeg` or `image/png`, at most 600 KB), its pixel size in `X-Photo-Width` / `X-Photo-Height`, an optional `?caption=`, and for [Newscast](../using/newscast.md) an optional `?drawing=1` (a Paint drawing) and `?by=<memberId>` (who made or added it; a person's own device only as them, else `403`; default: this device's person). Too large is `413`, another type is `415`, and a full album is `409` with the quota. Display keys can upload (so a wall display can save a Paint drawing to the family photos). Editing, deleting, the zip export and the zip import need an admin key.
 * Paint's [coloring pages](../using/activities.md#adding-your-own-pages): `GET /api/coloring-pages` lists the family's own pages `{ id, name, width, height, createdAt, url }`, newest first; `url` is the line art (`GET /api/photos/{id}/image`). `POST /api/coloring-pages?name=` adds one: a PNG body (dark lines on a transparent background, at most 600 KB) with its size in `X-Photo-Width` / `X-Photo-Height`. It counts toward the photo limits (`409` when full) but is never listed as a photo. `DELETE /api/coloring-pages/{id}` removes one. Display keys (wall screens, kids' devices) may list and view pages; adding and deleting need an admin key. The built-in pages ship with the app and aren't in the API.
 
+## Optional OIDC browser login
+
+[OIDC endpoints and security](../self-hosting/oidc.md#rest-endpoints) document public
+`GET /api/oidc/config`, same-origin `POST /api/oidc/start` and `/api/oidc/finish`, and the
+browser-bound `GET /api/oidc/callback`. They do not require an existing bearer key; the
+ceremony/cookie checks authenticate the browser. Only those exact methods/routes bypass
+bearer authentication. Other `/api/oidc/*` routes do not.
+
+`GET /api/oidc/sessions` requires a parent's key and rejects display keys and connected apps.
+Revoke a session with `DELETE /api/keys/{id}`. OIDC keys have `kind: session`, a fixed configured
+owner and a bounded expiry; `PUT /api/me/owner` cannot reassign them. `POST /api/sessions/logout`
+is available to both parent and everyday-access keys. Existing wall pairing endpoints and
+permissions are unchanged. OIDC login starts are limited to 20 per 10 minutes per address.
+
 ## Errors
 
 Every error is JSON with a matching HTTP status:

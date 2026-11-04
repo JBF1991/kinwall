@@ -10,6 +10,12 @@ export type Env = NativePushEnv & {
   OPEN_LIBRARY_CONTACT?: string; // operator email in Open Library's User-Agent; default: support@kinwall.family
   OPEN_LIBRARY_JSON?: (path: string) => Promise<unknown>; // host-coordinated public metadata client
   ADMIN_API_KEY?: string;
+  OIDC_ISSUER?: string; // optional household login, separate from calendar OAuth
+  OIDC_CLIENT_ID?: string;
+  OIDC_CLIENT_SECRET?: string;
+  OIDC_IDENTITY_MAP?: string; // JSON: exact provider sub -> { scope, memberId }; deny by default
+  OIDC_BUTTON_LABEL?: string;
+  OIDC_SESSION_SECONDS?: string; // 3600 by default, 60..86400; no provider refresh tokens
   SYNC_INTERVAL_MINUTES?: string;
   CORS_ORIGINS?: string;
   GOOGLE_CLIENT_ID?: string;

@@ -4,6 +4,12 @@
 
 Kinwall is configured with environment variables. On Docker and Node they're process environment variables. On Workers they're `[vars]` in `wrangler.toml` plus `wrangler secret put` for secrets. Kinwall never reads `process.env` outside the Node entry point, so an embedding host builds the same set itself. See [Embedding the server](../contributing/embedding.md).
 
+## Optional household single sign-on
+
+[OIDC configuration](oidc.md) adds a browser login such as Authelia, with explicit
+subject-to-member mappings. Passkeys, recovery codes and wall-device code pairing remain
+available. The guide covers `OIDC_*` variables, file-backed secrets, sessions and revocation.
+
 ## Server variables
 
 | Variable | Default | Purpose |

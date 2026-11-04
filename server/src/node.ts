@@ -123,6 +123,14 @@ const env: Env = {
   PUBLIC_URL: process.env.PUBLIC_URL,
   OPEN_LIBRARY_CONTACT: process.env.OPEN_LIBRARY_CONTACT,
   ADMIN_API_KEY: process.env.ADMIN_API_KEY,
+  OIDC_ISSUER: process.env.OIDC_ISSUER,
+  OIDC_CLIENT_ID: process.env.OIDC_CLIENT_ID,
+  OIDC_CLIENT_SECRET: process.env.OIDC_CLIENT_SECRET_FILE
+    ? readFileSync(process.env.OIDC_CLIENT_SECRET_FILE, 'utf8').trim() : process.env.OIDC_CLIENT_SECRET,
+  OIDC_IDENTITY_MAP: process.env.OIDC_IDENTITY_MAP_FILE
+    ? readFileSync(process.env.OIDC_IDENTITY_MAP_FILE, 'utf8').trim() : process.env.OIDC_IDENTITY_MAP,
+  OIDC_BUTTON_LABEL: process.env.OIDC_BUTTON_LABEL,
+  OIDC_SESSION_SECONDS: process.env.OIDC_SESSION_SECONDS,
   SYNC_INTERVAL_MINUTES: process.env.SYNC_INTERVAL_MINUTES,
   CORS_ORIGINS: process.env.CORS_ORIGINS,
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,

@@ -33,6 +33,11 @@ See [Who can change events](../using/events.md#who-can-change-events).
 
 Phones and computers that sign in with a passkey. Parents (admins) can change everything. **Add a passkey on this phone or computer**, **Use a security key or another device**, **Add another parent's phone or computer** (a QR code to scan there), rename, remove, and **Sign out**. See [Sign-in & security](../using/sign-in-and-security.md#passkeys).
 
+When optional [OIDC single sign-on](../self-hosting/oidc.md) is enabled, **Single sign-on
+sessions** lists browsers signed in through the provider, with their member and expiry.
+**Sign out** ends a selected browser session without removing its member, passkeys or paired
+walls. A parent signed in with OIDC can approve the usual wall-device pairing codes too.
+
 ## Recovery codes
 
 "*N* of 8 left", **Generate recovery codes** or **Generate new codes**. See [Sign-in & security](../using/sign-in-and-security.md#recovery-codes).

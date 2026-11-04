@@ -5,6 +5,7 @@ import { DOCS_URL } from './Help.tsx'
 import { api, ApiError, clearKey, MOCK, PUSH_SUB_ID_KEY } from './api.ts'
 import { securityHint } from './securityActivity.ts'
 import SecurityActivitySheet from './SecurityActivitySheet.tsx'
+import { OidcSessions } from './Oidc.tsx'
 import type { Account, ApiKey, CalendarEntry, List, Category, HiddenEvent, ColorScheme, CustomColors, Density, DeviceDensity, Features, GeocodeResult, GooglePhotos, HostEvent, Me, Member, SecurityEvent, Passkey, Providers, PushSubscription, RemoteCalendar, Settings, TempCheckSettings, TextScale, ThemeMode, TimeFormat, Typeface, Webhook } from './types.ts'
 import { connectCalendar, ProviderForm, PublicUrlRow } from './ProviderConfig.tsx'
 import { familyLinkHint, revoked, signInHint } from './calendarReconnect.ts'
@@ -3105,10 +3106,11 @@ function PasskeysSection({ me, toast, onChanged }: { me: Me; toast: (m: string, 
       {inFrame() && <p className="settings-row-sub">{t("Inside Home Assistant's panel, some browsers won't add a passkey.")} <a className="text-link" href={location.href} target="_blank" rel="noopener">{t('Open Kinwall in its own tab')}</a>{t(' to add one.')}</p>}
       {me.kind === 'session' && (
         <div className="settings-row">
-          <div className="settings-row-label">{me.keyName === 'Recovery code' ? t('Signed in with a recovery code') : t('Signed in with a passkey')}</div>
+          <div className="settings-row-label">{me.keyName === 'Recovery code' ? t('Signed in with a recovery code') : me.keyName.startsWith('SSO: ') ? t('Signed in with single sign-on') : t('Signed in with a passkey')}</div>
           <button className="link-btn" style={{ color: 'var(--danger)' }} onClick={signOut}>{t('Sign out')}</button>
         </div>
       )}
+      <OidcSessions onChanged={onChanged} />
       {passkeys.map(p => (
         <div key={p.id} className="key-item">
           {renaming?.id === p.id ? (

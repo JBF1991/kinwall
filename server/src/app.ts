@@ -37,6 +37,7 @@ import { leaderboardRoutes } from './routes/leaderboard.ts';
 import { listsRoutes } from './routes/lists.ts';
 import { keysRoutes } from './routes/keys.ts';
 import { passkeysRoutes } from './routes/passkeys.ts';
+import { oidcRoutes } from './routes/oidc.ts';
 import { recoveryRoutes } from './routes/recovery.ts';
 import { pairRoutes } from './routes/pair.ts';
 import { setupRoutes } from './routes/setup.ts';
@@ -247,6 +248,7 @@ export function createApp() {
   app.get('/plugins/*', servePluginFile); // public: a sandboxed iframe can't send a key
   app.route('/', keysRoutes);
   app.route('/', passkeysRoutes);
+  app.route('/', oidcRoutes);
   app.route('/', recoveryRoutes);
   app.route('/', pairRoutes);
   app.route('/', webhooksRoutes);

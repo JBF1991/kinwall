@@ -964,6 +964,10 @@ export const api = {
   getRecoveryCodes: () => MOCK ? Promise.resolve({ total: 0, remaining: 0, createdAt: null }) : get<{ total: number; remaining: number; createdAt: string | null }>('api/recovery-codes', true),
   recoveryLogin: (code: string) => post<{ key: string; expiresAt: string; remaining: number }>('api/recovery/login', { code }),
   sessionLogout: () => post<{ ok: boolean }>('api/sessions/logout'),
+  oidcConfig: () => get<{ enabled: boolean; label?: string }>('api/oidc/config'),
+  oidcStart: () => post<{ url: string }>('api/oidc/start'),
+  oidcFinish: () => post<{ key: string; expiresAt: string }>('api/oidc/finish'),
+  oidcSessions: () => get<{ id: string; name: string; owner: string | null; expiresAt: string }[]>('api/oidc/sessions', true),
 
   // Web Push. MOCK has no service worker / push manager to stand in for, so these skip the
   // mock-mode branch other calls use - the Settings UI itself checks `pushSupported()` first.

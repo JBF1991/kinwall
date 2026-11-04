@@ -23,6 +23,9 @@ A device without a key shows **Welcome home 👋** with these options:
 * **Set up a wall screen or kid's device**: starts pairing; a parent approves it with a code. See [Put it on the wall](../getting-started/put-it-on-the-wall.md).
 * **Enter a key manually**: paste any API key.
 * **Use a recovery code**: see below.
+* **Sign in with …**: when your server operator enables [OIDC single sign-on](../self-hosting/oidc.md).
+  It opens the provider (such as Authelia) and signs you in as the existing family member and
+  permission level your operator configured. It never replaces wall-screen code pairing.
 
 On a screen the size of a TV or large display (1600×900 and up), or one already set to **Use as a wall screen**, **Set up a wall screen or kid's device** comes first as the main button. On big screens this card and the pairing screen's code and QR code are drawn large, to read from across the room.
 
@@ -36,6 +39,15 @@ A link ending in `#key=…` (older links: `?key=…`) carries a key or a setup c
 * Anyone can make such a link for their own family, so only continue when you were expecting it. Otherwise what you add (events, a connected Google calendar) would go to their family, not yours.
 * A link with the key this browser already has changes nothing, so it doesn't ask (a kiosk browser that reopens its start address).
 * A hosted service's own sign-in page can mark the link it just made in the same browser. That link doesn't ask: the page sets a cookie, readable for 60 seconds by the family's address, whose SHA-256 the link carries as `&from=…`, and Kinwall continues without asking only when the two match, then deletes the cookie. A self-hosted server never sets it, so every link there asks once.
+
+## Single sign-on
+
+Optional browser OIDC sessions last one hour by default (the operator can change this).
+Parents can end them under **Settings → Access → Parent devices → Single sign-on sessions**.
+Signing out ends the Kinwall session, not your provider login. Disabling a provider account
+alone does not immediately revoke an existing Kinwall session: ask the operator to revoke it
+or remove its mapping too. Passkeys, recovery codes and paired walls remain independent.
+See [OIDC security and revocation](../self-hosting/oidc.md#sessions-revocation-and-security).
 
 ## Passkeys
 
