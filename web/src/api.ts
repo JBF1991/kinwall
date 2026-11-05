@@ -977,7 +977,7 @@ export const api = {
   passkeyRegisterToken: () => post<{ token: string; expiresAt: string }>('api/passkeys/register-token', undefined, true),
   passkeyLoginOptions: () => post<Record<string, unknown>>('api/passkeys/login/options'),
   passkeyLoginVerify: (response: unknown) => post<{ key: string; expiresAt: string }>('api/passkeys/login/verify', { response }),
-  getPasskeys: () => get<Passkey[]>('api/passkeys', true),
+  getPasskeys: () => MOCK ? Promise.resolve<Passkey[]>([]) : get<Passkey[]>('api/passkeys', true),
   renamePasskey: (id: string, name: string) => patch<Passkey>(`api/passkeys/${id}`, { name }, true),
   deletePasskey: (id: string) => del(`api/passkeys/${id}`, true),
   generateRecoveryCodes: () => post<{ codes: string[] }>('api/recovery-codes', undefined, true),
@@ -989,15 +989,15 @@ export const api = {
   oidcFinish: () => post<{ key: string; expiresAt: string }>('api/oidc/finish'),
   oidcSessions: () => get<{ id: string; name: string; owner: string | null; expiresAt: string }[]>('api/oidc/sessions', true),
 
-  // Web Push. MOCK has no service worker / push manager to stand in for, so these skip the
-  // mock-mode branch other calls use - the Settings UI itself checks `pushSupported()` first.
+  // Web Push delivery has no demo service worker / push manager; the UI checks
+  // pushSupported(). Device-list reads still return an empty demo list, never call a real API.
   getVapidPublicKey: () => get<{ publicKey: string }>('api/push/vapid-public-key'),
   subscribePush: (body: { subscription: PushSubscriptionJSON; deviceName: string; memberIds?: string[]; prefs?: Partial<PushSubscriptionPrefs> }) =>
     post<PushSubscription>('api/push/subscriptions', body),
   updatePushSubscription: (id: string, body: { deviceName?: string; memberIds?: string[]; prefs?: Partial<PushSubscriptionPrefs> }) =>
     patch<PushSubscription>(`api/push/subscriptions/${id}`, body),
   deletePushSubscription: (id: string) => del<{ ok: boolean }>(`api/push/subscriptions/${id}`),
-  getPushSubscriptions: () => get<PushSubscription[]>('api/push/subscriptions', true),
+  getPushSubscriptions: () => MOCK ? Promise.resolve<PushSubscription[]>([]) : get<PushSubscription[]>('api/push/subscriptions', true),
   testPush: (id: string) => post<{ ok: boolean }>(`api/push/test/${id}`),
   sendNotification: (body: { title: string; body: string; memberIds?: string[]; url?: string }) =>
     MOCK ? mock.sendNotification(body) : post<{ ok: boolean; sent: number }>('api/notify', body, true),

@@ -4,7 +4,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { format } from 'date-fns'
 import { DAY, formatDate, intlLocale, msg, t, tc, tm, tn } from './i18n.ts'
-import { api, ApiError } from './api.ts'
+import { api, ApiError, MOCK } from './api.ts'
+import Workouts from './Workouts.tsx'
+import { workoutPreviewAllowed } from './workouts.ts'
 import { useApp } from './AppContext.tsx'
 import { useDialog } from './dialog.tsx'
 import { announce, Segmented } from './a11y.tsx'
@@ -31,15 +33,16 @@ import BookCover from './BookCover.tsx'
 // ponytail: TABS, SUB_TO_KIND and trackerKinds() (types.ts, for App's nav) list the kinds in the same order.
 // The views, like the home page's: tabs where they fit, one button and a sheet on a phone (TrackerViewPicker).
 // The library comes with Reading: the family's books, apart from who's reading what (Library.tsx).
-type TrackerView = TrackerKind | 'library'
+type TrackerView = TrackerKind | 'library' | 'workouts'
 const TABS: { key: TrackerView; label: string; emoji: string; hint: string }[] = [
   { key: 'reading', label: msg('Reading'), emoji: '📖', hint: msg("Who's reading what, and how far along") },
   { key: 'library', label: msg('Library'), emoji: '📚', hint: msg('The books your family owns, and who has them') },
   { key: 'memory', label: msg('Memories'), emoji: '📝', hint: msg('A family journal, a moment a day') },
   { key: 'health', label: msg('Health'), emoji: '🩺', hint: msg('Checkups, visits and medicines') },
+  { key: 'workouts', label: msg('Workouts'), emoji: '🏋️', hint: msg('Plan routines and try a demo workout') },
 ]
-const SUB_TO_VIEW: Record<string, TrackerView> = { reading: 'reading', library: 'library', memories: 'memory', health: 'health' }
-const VIEW_TO_SUB: Record<TrackerView, string> = { reading: 'reading', library: 'library', memory: 'memories', health: 'health' }
+const SUB_TO_VIEW: Record<string, TrackerView> = { reading: 'reading', library: 'library', memories: 'memory', health: 'health', workouts: 'workouts' }
+const VIEW_TO_SUB: Record<TrackerView, string> = { reading: 'reading', library: 'library', memory: 'memories', health: 'health', workouts: 'workouts' }
 const STATUS = (['want', 'reading', 'finished'] as ReadingStatus[]).map(key => ({ key, label: STATUS_WORDS[key] })) // labels marked: tm()
 const HEALTH_TYPES: { key: HealthType; label: string; emoji: string }[] = [
   { key: 'checkup', label: msg('Checkup'), emoji: '🩺' }, { key: 'dentist', label: msg('Dentist'), emoji: '🦷' }, { key: 'specialist', label: msg('Specialist'), emoji: '👩‍⚕️' },
@@ -96,11 +99,13 @@ export default function Trackers({ sub }: { sub?: string }) {
   const [admin, setAdmin] = useState(false)
   useEffect(() => { api.meStrict().then(me => setAdmin(me.scope === 'admin')).catch(() => setAdmin(false)) }, [])
   const on = trackerKinds(settings)
-  const tabs = TABS.filter(tab => on.includes(VIEW_TO_SUB[tab.key === 'library' ? 'reading' : tab.key]) && (tab.key !== 'health' || admin))
+  const tabs = TABS.filter(tab => tab.key === 'workouts'
+    ? workoutPreviewAllowed(MOCK, import.meta.env.VITE_WORKOUTS_PROTOTYPE, admin, settings.features.trackersWorkouts === true)
+    : on.includes(VIEW_TO_SUB[tab.key === 'library' ? 'reading' : tab.key]) && (tab.key !== 'health' || admin))
   const view = tabs.find(tab => tab.key === SUB_TO_VIEW[sub ?? ''])?.key ?? tabs[0]?.key ?? 'reading'
   const library = view === 'library'
   const go = (v: TrackerView) => { location.hash = `#/trackers/${VIEW_TO_SUB[v]}` }
-  const kind: TrackerKind = library ? 'reading' : view // the library's readers come from reading entries
+  const kind: TrackerKind = library || view === 'workouts' ? 'reading' : view // the library's readers come from reading entries
   const isPhone = useIsPhone()
   const [tools, setTools] = useState<HTMLDivElement | null>(null) // the library's search sits here, beside the view picker
 
@@ -158,7 +163,7 @@ export default function Trackers({ sub }: { sub?: string }) {
             options={tabs.map(tab => ({ key: tab.key, label: <><span aria-hidden="true">{tab.emoji}</span> {tm(tab.label)}</> }))} />{library && <div className="trackers-tools" ref={setTools} />}</>}
       </div>
       <div className="trackers-body scroll-y" role="tabpanel" aria-labelledby={isPhone ? undefined : `trk-tab-${view}`} aria-label={isPhone ? (l => l && tm(l))(tabs.find(tab => tab.key === view)?.label) : undefined}>
-        {entries === null ? <div className="state-card">{t('Loading…')}</div>
+        {view === 'workouts' ? <Workouts /> : entries === null ? <div className="state-card">{t('Loading…')}</div>
           : library ? <Library bar={tools} adding={libAdding} onAdded={() => setLibAdding(false)} onStarted={load} />
           : kind === 'reading' ? <Reading entries={shown} people={people} canEdit={canEdit} onEdit={setEditing} onSave={save} />
           : kind === 'memory' ? <Memories entries={shown} today={today} onEdit={setEditing} onAdd={() => setEditing({ new: true, date: today })} />
@@ -169,7 +174,7 @@ export default function Trackers({ sub }: { sub?: string }) {
                 options={[{ value: '', label: t('Everyone'), lead: <Avatar m={family()} size={26} /> }, ...members.map(m => ({ value: m.id, label: m.name, lead: <Avatar m={m} size={26} /> }))]} />
             </div>} />}
       </div>
-      <button className="fab" onClick={() => (library ? setLibAdding(true) : setEditing({ new: true }))} aria-label={library ? t('Add a book to the library') : kind === 'reading' ? t('Add a book') : kind === 'memory' ? t('Add a memory') : t('Add a health visit')}><PlusIcon /></button>
+      {view !== 'workouts' && <button className="fab" onClick={() => (library ? setLibAdding(true) : setEditing({ new: true }))} aria-label={library ? t('Add a book to the library') : kind === 'reading' ? t('Add a book') : kind === 'memory' ? t('Add a memory') : t('Add a health visit')}><PlusIcon /></button>}
       {editing && (
         <EntrySheet kind={kind} entry={'new' in editing ? null : editing} date={'new' in editing ? editing.date ?? today : undefined}
           admin={admin} kid={kid} photos={photos} memberId={personId}

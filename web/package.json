@@ -10,6 +10,8 @@
     "build:demo": "tsc -b && VITE_MOCK=1 vite build --outDir dist-demo && cp -R demo-drawings dist-demo/ && node scripts/demo-plugins.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
+    "build:workouts": "tsc -b && VITE_MOCK=1 VITE_WORKOUTS_PROTOTYPE=1 vite build --config vite.workouts.config.ts --outDir dist-workouts",
+    "preview:workouts": "vite preview --config vite.workouts.config.ts --outDir dist-workouts",
     "test": "node --test test/*.test.ts"
   },
   "dependencies": {

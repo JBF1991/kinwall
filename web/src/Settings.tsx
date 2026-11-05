@@ -51,7 +51,7 @@ import { deviceTimeFormat, formatTime, resolveHour12 } from './timeFormat.ts'
 import { tzCity } from './timezone.ts'
 import { MedicationsToggle } from './MedicationSettings.tsx'
 import { announce, pressable, reducedMotion, Segmented } from './a11y.tsx'
-import { FEATURE_ROWS } from './featureConfig.ts'
+import { featureRowsForBuild } from './featureConfig.ts'
 import { Brand } from './Brand.tsx'
 import { filterSettings, linkTab, matchesAll, queryWords, readOpen, tabsShown, writeOpen } from './settingsSearch.ts'
 import { Face } from './Face'
@@ -440,23 +440,24 @@ function GeneralSection({ settings, onSaved, toast, isDisplay }: { settings: Ret
 
 /** Household feature switches (admin only: a display key can't change them). */
 function FeaturesSection({ settings, onSaved, toast }: { settings: Settings; onSaved: () => void; toast: (m: string, persist?: boolean) => void }) {
+  const rows = featureRowsForBuild(MOCK, import.meta.env.VITE_WORKOUTS_PROTOTYPE)
   const set = async (key: keyof Features) => {
     try { await api.updateSettings({ features: { ...settings.features, [key]: !settings.features[key] } }); onSaved() } catch (e) { toast(e instanceof ApiError ? e.message : t('Could not save settings'), true) }
   }
-  const featureName = (f: typeof FEATURE_ROWS[number]) => f.group === 'Trackers' ? t('{name} tracker', { name: tm(f.label) }) : tm(f.label)
-  const { summary, detail } = featuresSummary(FEATURE_ROWS.map(f => ({ label: featureName(f), on: settings.features[f.key] })))
+  const featureName = (f: typeof rows[number]) => f.group === 'Trackers' ? t('{name} tracker', { name: tm(f.label) }) : tm(f.label)
+  const { summary, detail } = featuresSummary(rows.map(f => ({ label: featureName(f), on: settings.features[f.key] === true })))
   return (
-    <SummarySection title={t('Features')} summary={summary} detail={detail ?? t("Turn off what your family doesn't use.")} keywords={FEATURE_ROWS.map(featureName)}>
+    <SummarySection title={t('Features')} summary={summary} detail={detail ?? t("Turn off what your family doesn't use.")} keywords={rows.map(featureName)}>
       <p className="settings-row-sub">{t("Turn off what your family doesn't use. It's hidden on every screen; nothing is deleted.")}</p>
-      {FEATURE_ROWS.map((f, i) => (<Fragment key={f.key}>
-        {FEATURE_ROWS[i - 1]?.section !== f.section && <h3 className="features-section">{f.section === 'Everyday' ? t('Everyday') : t('Nooks')}</h3>}
-        {f.group && FEATURE_ROWS[i - 1]?.group !== f.group && <h4 className="features-group">{tm(f.group)}</h4>}
+      {rows.map((f, i) => (<Fragment key={f.key}>
+        {rows[i - 1]?.section !== f.section && <h3 className="features-section">{f.section === 'Everyday' ? t('Everyday') : t('Nooks')}</h3>}
+        {f.group && rows[i - 1]?.group !== f.group && <h4 className="features-group">{tm(f.group)}</h4>}
         <div className={`toggle-row ${f.group ? 'features-grouped' : ''}`}>
           <div>
             <label id={`feature-${f.key}-label`}>{f.group && <span className="sr-only">{tm(f.group)}: </span>}{tm(f.label)}</label>
             <div className="settings-row-sub" id={`feature-${f.key}-sub`}>{tm(f.sub)}</div>
           </div>
-          <button className={`switch ${settings.features[f.key] ? 'on' : ''}`} role="switch" aria-checked={settings.features[f.key]}
+          <button className={`switch ${settings.features[f.key] ? 'on' : ''}`} role="switch" aria-checked={settings.features[f.key] === true}
             aria-labelledby={`feature-${f.key}-label`} aria-describedby={`feature-${f.key}-sub`} onClick={() => set(f.key)}><span className="knob" /></button>
         </div>
         {f.key === 'trackersHealth' && settings.features.trackersHealth && <MedicationsToggle />}

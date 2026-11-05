@@ -4,6 +4,12 @@ The **Trackers** tab keeps the family's logs: the books and audiobooks everyone 
 
 In Reading and Memories, the header's member filter works too: pick a person and you see their entries plus the family's. Health has its own switcher (below).
 
+## Workouts prototype
+
+This development branch includes an opt-in, demo-only **Workouts** view for parents, with a
+Plan, workout builder, set logging and history. It is not enabled in production or ordinary
+demo builds and does not store personal data. See [Workouts prototype](workouts.md) to run it.
+
 ## Reading 📖
 
 A shelf per person, with what they're reading first, then what they want to read, then what they've finished.
