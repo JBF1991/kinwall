@@ -104,6 +104,7 @@ export interface Features {
   trackersReading: boolean
   trackersMemories: boolean
   trackersHealth: boolean
+  trackersWorkouts?: boolean // Demo-only prototype switch; not part of the production server schema.
   meals: boolean // Meals tab, the Board's meals card, meals in the daily summary
   newscast: boolean // Home's Newscast tab (with its routes)
   polls: boolean // Family polls: the Board card, the Polls sheet, poll notifications (their routes answer 404 while off)

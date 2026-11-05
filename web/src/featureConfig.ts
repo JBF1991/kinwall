@@ -6,6 +6,15 @@ export type FeatureRow = { key: keyof Features; label: string; sub: string; sect
 /** Every household feature has one row here, so the settings list and its summary stay complete.
  * Two headings: Everyday (the small things used daily) and Nooks (areas of their own with several
  * parts inside). "Nooks" is only ever a heading; the tabs keep their own names. */
+const WORKOUT_ROW: FeatureRow = {
+  key: 'trackersWorkouts', section: 'Spaces', group: msg('Trackers'), label: msg('Workouts'),
+  sub: msg('Plan workouts, record sets and review demo history. Turning this off hides the view without clearing its data; refreshing resets the preview.'),
+}
+export function featureRowsForBuild(demo: boolean, flag: string | undefined): readonly FeatureRow[] {
+  return demo && flag === '1'
+    ? FEATURE_ROWS.flatMap(row => row.key === 'trackersHealth' ? [row, WORKOUT_ROW] : [row])
+    : FEATURE_ROWS
+}
 export const FEATURE_ROWS: readonly FeatureRow[] = [
   { key: 'chores', section: 'Everyday', label: msg('Chores & points'), sub: msg('The Chores tab and chore library, points, rewards and the sticker book. The leaderboard, sticker shop and rewards have their own switches in Family → Chores.') },
   { key: 'lists', section: 'Everyday', label: msg('Lists'), sub: msg('The Lists tab with Groceries and shopping mode, “Due soon” and list counts on the Board, and tasks on events.') },

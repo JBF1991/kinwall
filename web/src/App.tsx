@@ -9,6 +9,7 @@ import { dayStartDue } from './medications.ts'
 import { AppContext, useApp, type ToastAction } from './AppContext.tsx'
 import type { Category, Member, Settings } from './types.ts'
 import { rewardsOn, trackerKinds } from './types.ts'
+import { workoutPreviewAllowed } from './workouts.ts'
 import { BookIcon, CalendarIcon, MoreIcon, BrushIcon, HomeIcon, ChoreIcon, CloudOffIcon, GiftIcon, ListIcon, MealIcon, MoonIcon, PersonIcon, SettingsIcon, TicketIcon, WrenchIcon } from './icons.tsx'
 import CalendarView from './Calendar.tsx'
 import Chores from './Chores.tsx'
@@ -94,8 +95,11 @@ type NavItem = { key: string; href: string; label: string; Icon: (p: object) => 
  * and points. A display with Lock view loses Home or Calendar (calendarViews.ts lockedOut). A
  * member's own device gets "Me" (their profile): after Chores on a kid's device (`kid`), so it stays
  * on a phone's bottom bar, after Lists on a grown-up's (meSlot), and "Journal" while check-ins are on. */
+function enabledTrackerViews(s: Settings): string[] {
+  return [...trackerKinds(s), ...(workoutPreviewAllowed(MOCK, import.meta.env.VITE_WORKOUTS_PROTOTYPE, true, s.features.trackersWorkouts === true) ? ['workouts'] : [])]
+}
 function navItems(s: Settings, me?: Member | null, plugins = false, lock?: LockedView, kid = false): NavItem[] {
-  const items: NavItem[] = NAV_ITEMS.filter(i => !lockedOut(i.key, lock)).filter(i => i.key === 'chores' ? s.features.chores : i.key === 'rewards' ? rewardsOn(s) : i.key === 'lists' ? s.features.lists : i.key === 'contacts' ? s.features.contacts : i.key === 'meals' ? s.features.meals : i.key === 'outings' ? s.features.outings !== false : i.key === 'upkeep' ? s.features.upkeep !== false : i.key === 'trackers' ? trackerKinds(s).length > 0 : i.key === 'activities' ? shownActivities(s).length > 0 || plugins : true)
+  const items: NavItem[] = NAV_ITEMS.filter(i => !lockedOut(i.key, lock)).filter(i => i.key === 'chores' ? s.features.chores : i.key === 'rewards' ? rewardsOn(s) : i.key === 'lists' ? s.features.lists : i.key === 'contacts' ? s.features.contacts : i.key === 'meals' ? s.features.meals : i.key === 'outings' ? s.features.outings !== false : i.key === 'upkeep' ? s.features.upkeep !== false : i.key === 'trackers' ? enabledTrackerViews(s).length > 0 : i.key === 'activities' ? shownActivities(s).length > 0 || plugins : true)
   if (me) items.splice(meSlot(items.map(i => i.key), kid), 0, { key: 'profile', href: `#/profile/${me.id}`, label: msg('Me'), Icon: () => me.picture ? <Face m={me} className="nav-me nav-me-pic" aria-hidden="true" /> : <span className="nav-me" aria-hidden="true">{me.avatar || me.name[0]}</span> })
   // Their journal, just before Settings: on a phone it sits under More, so the everyday tabs keep their place.
   if (me && s.features.checkIns) items.splice(items.findIndex(i => i.key === 'settings'), 0, { key: 'journal', href: `#/journal/${me.id}`, label: msg('Journal'), Icon: () => <span className="nav-me" aria-hidden="true">📓</span> })
@@ -114,7 +118,7 @@ function featureRedirect(s: Settings, section: string, sub: string | undefined, 
   if (section === 'activities' && sub === 'plugin') return null // an activity chore's play link works whatever else is on
   if (section === 'chores' || section === 'rewards' || section === 'lists' || section === 'contacts' || section === 'meals' || section === 'outings' || section === 'upkeep' || section === 'trackers' || section === 'activities') {
     if (!navItems(s, null, plugins !== false).some(i => i.key === section)) return rest
-    if (section === 'trackers') { const on = trackerKinds(s); return sub && !on.includes(sub) && !(sub === 'library' && on.includes('reading')) ? `#/trackers/${on[0]}` : null } // the library comes with Reading
+    if (section === 'trackers') { const on = enabledTrackerViews(s); return sub && !on.includes(sub) && !(sub === 'library' && on.includes('reading')) ? `#/trackers/${on[0]}` : null } // the library comes with Reading
     if (sub && section === 'activities' && sub !== 'plugin' && !shownActivities(s).some(a => a.key === sub)) return '#/activities'
   }
   return null
