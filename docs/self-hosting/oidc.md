@@ -123,8 +123,13 @@ session through a same-origin POST, not a URL. Kinwall stores only its hash. The
 frontend stores that bearer key in browser storage, just like a passkey session: this is not
 an HttpOnly-cookie replacement for Kinwall's general API authentication.
 
-Local sessions expire after the configured lifetime. **Sign out** deletes the local session;
-it does not sign you out of Authelia or other applications. A new sign-in may reuse an existing
+Local sessions expire after the configured lifetime. **Settings → This sign-in → Sign out**
+revokes the current session on the server before clearing browser credentials and offline
+copies. Other tabs reload to sign-in; temporary parent access is cleared too. Server/network
+errors are reported and can be retried, rather than silently leaving a live key behind. An
+already-expired/revoked session can be cleared. Logout also cancels this browser's pending
+OIDC ceremony/handoff and expires its HttpOnly ceremony cookie. It does not sign you out of
+Authelia or other applications. A new sign-in may reuse an existing
 provider login. Parent devices can view and end OIDC sessions under **Settings → Access →
 Parent devices**, or use `GET /api/oidc/sessions` and `DELETE /api/keys/{id}`.
 
@@ -181,7 +186,7 @@ All routes also declare schemas in `/openapi.json` and `/docs`.
 | `GET /api/oidc/callback` | Browser ceremony cookie + provider response | Fixed success/error redirect, no keys in URL. |
 | `POST /api/oidc/finish` | Same-origin `Origin` + one-time handoff cookie | Bounded local bearer session. |
 | `GET /api/oidc/sessions` | Parent bearer key | Session IDs, labels, owners, scope and timestamps; no provider subjects/tokens. |
-| `POST /api/sessions/logout` | Current bearer key | Deletes that session; now also available to everyday-access sessions. |
+| `POST /api/sessions/logout` | Current bearer key | Deletes that session, cancels this browser's pending OIDC flow/handoff and expires the ceremony cookie; available to everyday-access sessions. |
 
 Existing anonymous `POST /api/pair` and `POST /api/pair/poll`, and parent-only
 `POST /api/pair/approve`, are unchanged.

@@ -7,7 +7,9 @@ import { stored, words } from '../i18n.ts';
 import { createRoute, z } from '@hono/zod-openapi';
 import { createRouter } from '../router.ts';
 import type { Env } from '../env.ts';
-import { actorOf, connectedAppBlock, createApiKey, resolveKey } from '../auth.ts';
+import { actorOf, connectedAppBlock, createApiKey, resolveKey, sha256Hex } from '../auth.ts';
+import { deleteCookie, getCookie } from 'hono/cookie';
+import { OIDC_COOKIE, OIDC_COOKIE_OPTIONS } from '../oidc-policy.ts';
 import { pushGrownUps, recordSecurityEvent, securityEventStmts } from './security-events.ts';
 import { emit } from '../bus.ts';
 import { errorMessage } from '../redact.ts';
@@ -494,19 +496,27 @@ passkeysRoutes.openapi(
     method: 'post',
     path: '/api/sessions/logout',
     tags: ['Passkeys'],
-    summary: 'Sign out the current passkey session',
+    summary: 'Revoke the current session and cancel this browser\'s pending OIDC sign-in',
     security: [{ Bearer: [] }],
     responses: { 200: { description: 'ok', content: { 'application/json': { schema: z.object({ ok: z.boolean() }) } } } },
   }),
   async (c) => {
+    c.header('Cache-Control', 'no-store');
     const resolved = await resolveKey(c);
     if (resolved?.id) {
       const db = c.env.DB;
+      const browser = getCookie(c, OIDC_COOKIE);
+      const browserHash = browser ? await sha256Hex(browser) : null;
       await db.batch([
         db.prepare('DELETE FROM api_keys WHERE id = ?').bind(resolved.id),
+        ...(browserHash ? [
+          db.prepare('DELETE FROM oidc_flows WHERE browser_hash = ?').bind(browserHash),
+          db.prepare('DELETE FROM oidc_handoffs WHERE browser_hash = ?').bind(browserHash),
+        ] : []),
         ...securityEventStmts(db, { kind: 'signout', summary: resolved.name.startsWith('Passkey: ') ? stored('security', 'Signed out (passkey "{name}")', { name: resolved.name.slice(9) }) : stored('security', 'Signed out ({name})', { name: resolved.name }), by: await actorOf(c), device: resolved.name }),
       ]);
     }
+    deleteCookie(c, OIDC_COOKIE, OIDC_COOKIE_OPTIONS);
     return c.json({ ok: true }, 200);
   },
 );

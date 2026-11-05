@@ -152,6 +152,37 @@ test('OIDC parent login, one-time handoff, member binding, media revocation and 
   assert.ok(!log?.summary.includes('subject-alex'));
 });
 
+for (const stage of ['flow', 'handoff'] as const) {
+  test(`logout revokes only this session and cancels its pending OIDC ${stage}`, async t => {
+    const p = await provider(t);
+    const f = fixture();
+    const first = await login(f, p);
+    const other = await login(f, p);
+    const headers = { Authorization: `Bearer ${first.key}` };
+    const { token } = await (await f.req('/api/media-token', { headers })).json() as { token: string };
+    const pending = await begin(f); p.use(pending.auth);
+    let cookie = pending.cookie;
+    if (stage === 'handoff') {
+      const response = await f.req(`/api/oidc/callback?code=fake-code&state=${pending.state}`, { headers: { Cookie: cookie } });
+      assert.equal(response.headers.get('location'), `${origin}/?oidc=complete`);
+      cookie = cookieOf(response);
+    }
+    const response = await f.req('/api/sessions/logout', { method: 'POST', headers: { ...headers, Cookie: cookie } });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.match(response.headers.get('set-cookie') ?? '', /__Host-kinwall-oidc=;/);
+    assert.equal((await f.req('/api/me', { headers })).status, 401);
+    assert.equal((await f.req(`/api/photos/not-real/image?key=${encodeURIComponent(token)}`)).status, 401);
+    assert.equal((await f.req('/api/me', { headers: { Authorization: `Bearer ${other.key}` } })).status, 200);
+    assert.equal((await f.req('/api/sessions/logout', { method: 'POST' })).status, 401);
+    if (stage === 'flow') {
+      const callbackResponse = await f.req(`/api/oidc/callback?code=fake-code&state=${pending.state}`, { headers: { Cookie: cookie } });
+      assert.equal(callbackResponse.headers.get('location'), `${origin}/?oidc=error`);
+    }
+    assert.equal((await f.post('/api/oidc/finish', cookie)).status, 401);
+  });
+}
+
 test('OIDC everyday access is pinned to a kid, never gets parent permissions', async t => {
   const p = await provider(t, { sub: 'subject-maya' });
   const f = fixture();

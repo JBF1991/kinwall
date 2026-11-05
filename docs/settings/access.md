@@ -38,6 +38,15 @@ sessions** lists browsers signed in through the provider, with their member and 
 **Sign out** ends a selected browser session without removing its member, passkeys or paired
 walls. A parent signed in with OIDC can approve the usual wall-device pairing codes too.
 
+## Signing out of this browser
+
+**This sign-in → Sign out** appears below the settings cards on every tab for browser sessions,
+including everyday-access single sign-on and browsers without passkey support. It ends only
+this browser session after the server confirms revocation, clears temporary parent access and
+offline copies, and returns all tabs in that browser to sign-in. A connection error leaves the
+action available to retry. It does not remove passkeys, revoke paired screens or sign out of
+the identity provider. See [Signing out](../using/sign-in-and-security.md#signing-out).
+
 ## Recovery codes
 
 "*N* of 8 left", **Generate recovery codes** or **Generate new codes**. See [Sign-in & security](../using/sign-in-and-security.md#recovery-codes).

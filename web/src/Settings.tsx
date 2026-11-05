@@ -2,7 +2,7 @@ import { createContext, Fragment, useContext, useEffect, useId, useLayoutEffect,
 import RoutineModeSettings from './RoutineModeSettings.tsx'
 import { AppContext, useApp } from './AppContext.tsx'
 import { DOCS_URL } from './Help.tsx'
-import { api, ApiError, clearKey, MOCK, PUSH_SUB_ID_KEY } from './api.ts'
+import { api, ApiError, clearKey, signOutSession, MOCK, PUSH_SUB_ID_KEY } from './api.ts'
 import { securityHint } from './securityActivity.ts'
 import SecurityActivitySheet from './SecurityActivitySheet.tsx'
 import { OidcSessions } from './Oidc.tsx'
@@ -208,7 +208,7 @@ export default function SettingsView() {
                 <TimeCuesSection />
                 <NightScreenSection />
                 <NotificationsSection toast={toast} />
-                <TroubleshootSection keyName={isDisplay ? me.keyName : undefined} />
+                <TroubleshootSection keyName={isDisplay && me.kind !== 'session' ? me.keyName : undefined} session={me.kind === 'session'} toast={toast} />
               </SettingsGroup>
             </>}
             {k === 'family' && <>
@@ -232,7 +232,7 @@ export default function SettingsView() {
               <SecondWayInNudge tick={accessTick} />
               <DisplaysSection toast={toast} />
               <NotificationDevicesSection toast={toast} />
-              <PasskeysSection me={me} toast={toast} onChanged={bumpAccess} />
+              <PasskeysSection toast={toast} onChanged={bumpAccess} />
               <RecoveryCodesSection toast={toast} onChanged={bumpAccess} />
               {/* For people who connect other apps and scripts: folded, except while a search shows them. */}
               <details className="settings-advanced" open={words.length > 0 || undefined}>
@@ -248,6 +248,7 @@ export default function SettingsView() {
           </Fragment>)}
         </AccordionCtx.Provider>
         </div>
+        {meReady && me.kind === 'session' && <SessionSection me={me} toast={toast} />}
         <div className="settings-version">
           <Brand />
           {me.version && <div>{t('Version {version}', { version: me.version })}</div>}
@@ -2174,7 +2175,7 @@ function ScreenScaleRow() {
 }
 
 /** Stuck-build reload, and unpairing for a display key. */
-function TroubleshootSection({ keyName }: { keyName?: string }) {
+function TroubleshootSection({ keyName, session, toast }: { keyName?: string; session: boolean; toast: (m: string, persist?: boolean) => void }) {
   const dialog = useDialog()
   const unpair = async () => {
     if (!await dialog.confirm({ title: t('Unpair this device?'), body: t("You'll need to pair it again from a parent's phone or computer to use it here."), confirmLabel: t('Unpair'), danger: true })) return
@@ -2208,7 +2209,10 @@ function TroubleshootSection({ keyName }: { keyName?: string }) {
         <div className="settings-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
           <button className="btn btn-danger" onClick={async () => {
             if (!await dialog.confirm({ title: t('Sign out of the app?'), body: t('You can sign in again with your passkey, or pair with a code.'), confirmLabel: t('Sign out'), danger: true })) return
-            clearKey() // the app ends its sign-in and shows its own sign-in screen
+            try {
+              if (session) await signOutSession()
+              else await clearKey() // OAuth-connected native apps end their own sign-in.
+            } catch { toast(t('Could not sign out. Check your connection and try again.'), true) }
           }}>{t('Sign out')}</button>
           <div className="settings-row-sub">{t('Signs this app out of Kinwall. An app signed in with a passkey is also removed from Connected apps.')}</div>
         </div>
@@ -3050,7 +3054,29 @@ function passkeyKind(transports: string[] = []): string | null {
   return null
 }
 
-function PasskeysSection({ me, toast, onChanged }: { me: Me; toast: (m: string, persist?: boolean) => void; onChanged: () => void }) {
+function SessionSection({ me, toast }: { me: Me; toast: (m: string, persist?: boolean) => void }) {
+  const dialog = useDialog()
+  const [busy, setBusy] = useState(false)
+  const singleSignOn = me.keyName.startsWith('SSO: ')
+  const signOut = async () => {
+    if (!await dialog.confirm({
+      title: t('Sign out of Kinwall?'),
+      body: singleSignOn
+        ? t('This ends your Kinwall session in this browser, not your single sign-on provider session. Other apps and paired screens stay signed in.')
+        : t('This ends your Kinwall session in this browser. Your passkeys and other devices are not removed.'),
+      confirmLabel: t('Sign out'),
+    })) return
+    setBusy(true)
+    try { await signOutSession() }
+    catch { toast(t('Could not sign out. Check your connection and try again.'), true); setBusy(false) }
+  }
+  return <Section id="current-sign-in" title={t('This sign-in')}>
+    <p className="settings-row-sub">{singleSignOn ? t('Signed in with single sign-on') : me.keyName === 'Recovery code' ? t('Signed in with a recovery code') : t('Signed in with a passkey')}</p>
+    <button className="btn btn-secondary" onClick={signOut} disabled={busy}>{t('Sign out')}</button>
+  </Section>
+}
+
+function PasskeysSection({ toast, onChanged }: { toast: (m: string, persist?: boolean) => void; onChanged: () => void }) {
   const dialog = useDialog()
   const [passkeys, setPasskeys] = useState<Passkey[]>([])
   // false = closed; 'default' = this device (browser's choice, usually Face ID / Touch ID);
@@ -3086,12 +3112,6 @@ function PasskeysSection({ me, toast, onChanged }: { me: Me; toast: (m: string, 
     if (!await dialog.confirm({ title: t('Remove "{name}"?', { name: p.name }), body, confirmLabel: t('Remove'), danger: true })) return
     try { await api.deletePasskey(p.id); load(); onChanged() } catch (e) { toast(e instanceof ApiError ? e.message : t('Could not remove passkey'), true) }
   }
-  const signOut = async () => {
-    try { await api.sessionLogout() } catch { /* ignore - clearing locally either way */ }
-    await clearKey()
-    location.reload()
-  }
-
   if (!passkeysSupported()) {
     return (
       <Section id="passkeys" title={t('Passkeys')} icon={<KeyIcon width={16} height={16} />}>
@@ -3104,12 +3124,6 @@ function PasskeysSection({ me, toast, onChanged }: { me: Me; toast: (m: string, 
     <Section id="passkeys" title={t('Parent devices')} icon={<KeyIcon width={16} height={16} />} keywords={[t('Passkeys')]}>
       <p className="settings-row-sub">{t('Phones and computers that sign in with a passkey. Parents (admins) can change everything.')}</p>
       {inFrame() && <p className="settings-row-sub">{t("Inside Home Assistant's panel, some browsers won't add a passkey.")} <a className="text-link" href={location.href} target="_blank" rel="noopener">{t('Open Kinwall in its own tab')}</a>{t(' to add one.')}</p>}
-      {me.kind === 'session' && (
-        <div className="settings-row">
-          <div className="settings-row-label">{me.keyName === 'Recovery code' ? t('Signed in with a recovery code') : me.keyName.startsWith('SSO: ') ? t('Signed in with single sign-on') : t('Signed in with a passkey')}</div>
-          <button className="link-btn" style={{ color: 'var(--danger)' }} onClick={signOut}>{t('Sign out')}</button>
-        </div>
-      )}
       <OidcSessions onChanged={onChanged} />
       {passkeys.map(p => (
         <div key={p.id} className="key-item">

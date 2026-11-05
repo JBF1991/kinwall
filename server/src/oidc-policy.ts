@@ -3,6 +3,9 @@ import { z } from '@hono/zod-openapi';
 import type { Env } from './env.ts';
 import { msg } from './i18n.ts';
 
+export const OIDC_COOKIE = '__Host-kinwall-oidc';
+export const OIDC_COOKIE_OPTIONS = { httpOnly: true, secure: true, sameSite: 'Lax' as const, path: '/' };
+
 const Identity = z.object({ scope: z.enum(['admin', 'display']), memberId: z.string().min(1).max(200) }).strict();
 const Identities = z.record(z.string().min(1).max(255), Identity);
 export type OidcIdentity = z.infer<typeof Identity>;

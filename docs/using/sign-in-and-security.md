@@ -49,6 +49,22 @@ alone does not immediately revoke an existing Kinwall session: ask the operator 
 or remove its mapping too. Passkeys, recovery codes and paired walls remain independent.
 See [OIDC security and revocation](../self-hosting/oidc.md#sessions-revocation-and-security).
 
+## Signing out
+
+For a browser signed in with a passkey, recovery code or single sign-on, open **Settings** and
+choose **This sign-in → Sign out** below the settings cards. It is available to both parents
+and everyday-access sessions, even when the browser cannot use passkeys.
+
+Kinwall confirms server-side revocation before clearing the browser's sign-in, temporary
+parent access, media credential and offline copies, then returns to the sign-in page. Other
+tabs in the same browser also return to sign-in. If the server cannot be reached, an error
+asks you to retry; Kinwall does not silently claim the session has ended. An already expired
+or revoked session can still be cleared. Paired wall screens and other devices stay signed in.
+
+This does **not** sign you out of Authelia or another single sign-on provider. Clicking the
+provider button again may reuse that provider login; Kinwall never starts a fresh login just
+because you signed out. On a shared computer, sign out of the provider separately too.
+
 ## Passkeys
 
 **Settings → Access → Passkeys**:
@@ -57,7 +73,7 @@ See [OIDC security and revocation](../self-hosting/oidc.md#sessions-revocation-a
 * **Use a security key or another device**: a hardware key (USB/NFC/Bluetooth) or a phone nearby over the hybrid flow. Passkeys created this way are labeled "Security key".
 * **Add a passkey on another device**: shows a QR code with a one-time token, valid for 15 minutes, that lets another device register exactly one passkey.
 * Rename a passkey, or remove it. Removing a passkey also signs out every session created with it. Removing the last one warns you first.
-* **Sign out** ends this device's passkey session.
+* **Settings → This sign-in → Sign out** ends this browser's session, not its registered passkey.
 * A passkey can belong to a grown-up: set it from a device signed in with it (**Settings → General → This device**). Every later sign-in with it then opens that person's [private journal](journal.md#private-journals).
 
 Passkeys are bound to your domain (the *rpID*). That's the host of `PUBLIC_URL` when it's set, otherwise the address you opened Kinwall at. Multi-family hosts can share one rpID across subdomains with `WEBAUTHN_RP_ID`. See [Configuration](../self-hosting/configuration.md).

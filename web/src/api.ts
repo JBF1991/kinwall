@@ -7,6 +7,7 @@ import { doseChanges } from './doseChanges.ts'
 import { changedAreas, type RevAnswer } from './revs.ts'
 import { failureMessage } from './failureMessage.ts'
 import { mediaTokenStale } from './mediaToken.ts'
+import { ADMIN_KEY_STORAGE, KEY_STORAGE, MEDIA_STORAGE, clearSessionCredentials, endBrowserSession, sessionKeyChanged } from './sessionLogout.ts'
 import { mock, mockPlugins } from './mock.ts'
 import { SECURITY_PAGE } from './securityActivity.ts'
 import { libraryQuery } from './library.ts'
@@ -32,10 +33,7 @@ export const MOCK = import.meta.env.VITE_MOCK === '1'
 doseChanges.listen(tellAppDoseChanged)
 /** This device's push subscription id (Settings → This display → Notifications), for its own prefs. */
 export const PUSH_SUB_ID_KEY = 'kinwall.pushSubId'
-const KEY_STORAGE = 'kinwall.apiKey'
-const ADMIN_KEY_STORAGE = 'kinwall.adminKey' // sessionStorage: { key, expiresAt } — cleared after 5 min
 const ADMIN_TTL_MS = 5 * 60 * 1000
-const MEDIA_STORAGE = 'kinwall.mediaToken' // { of: the key's last 12 characters, token } from GET /api/media-token
 
 export function getKey(): string | null {
   return localStorage.getItem(KEY_STORAGE)
@@ -59,7 +57,7 @@ export async function checkKey(key: string): Promise<'ok' | 'rejected' | 'unreac
 /** `rejected`: the server refused the key (revoked, or an app's short-lived key lapsed);
  * `signOut`: the person chose to sign out or unpair. */
 export function clearKey(reason: 'signOut' | 'rejected' = 'signOut'): Promise<void> {
-  localStorage.removeItem(KEY_STORAGE)
+  clearSessionCredentials(localStorage, { removeItem: () => clearAdminKey() })
   forgetMediaToken()
   tellAppSignedOut(reason)
   // Offline copies go with the key (and at start-up with no key: see below). A rejected key
@@ -69,6 +67,15 @@ export function clearKey(reason: 'signOut' | 'rejected' = 'signOut'): Promise<vo
     clearOffline(reason === 'rejected'),
     reason === 'signOut' && 'caches' in window ? caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))) : null,
   ]).then(() => {}, () => {})
+}
+
+/** Revoke this browser's session before forgetting it; a failed request stays retryable. */
+export function signOutSession(): Promise<void> {
+  return endBrowserSession({
+    revoke: () => api.sessionLogout(),
+    clear: () => clearKey(),
+    navigate: () => location.replace(new URL('.', document.baseURI).href),
+  })
 }
 
 /** Temporary admin key used only for accounts/oauth/keys/webhooks/calendar-create-delete
@@ -252,6 +259,19 @@ function queue(method: Op['method'], path: string, body?: unknown): Op {
 }
 
 if (!MOCK && typeof window !== 'undefined') {
+  window.addEventListener('storage', event => {
+    if (event.storageArea !== localStorage || !sessionKeyChanged(event)) return
+    clearAdminKey()
+    forgetMediaToken()
+    location.reload() // Discard the old person's in-memory views immediately in other tabs.
+  })
+  const openedWithKey = getKey()
+  window.addEventListener('pageshow', event => {
+    if (event.persisted && getKey() !== openedWithKey) {
+      clearAdminKey()
+      location.reload() // A back/forward-cache restore must not resurrect a signed-out view.
+    }
+  })
   window.addEventListener('online', () => { setOffline(false); syncNow(); refreshMediaToken() })
   window.addEventListener('offline', () => setOffline(true))
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow() })
